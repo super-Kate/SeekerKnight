@@ -1,11 +1,9 @@
 import arcade
 
-from pyglet.graphics import Batch
 from arcade.gui import (
     UIManager,
     UITextureButton,
     UIAnchorLayout,
-    UIView,
     UIBoxLayout,
     UILabel
 )
@@ -17,6 +15,8 @@ VIEWPORT_MARGIN = 220
 
 CAMERA_SPEED = 0.1
 PLAYER_MOVEMENT_SPEED = 7
+GRAVITY = 1
+PLAYER_JUMP_SPEED = 15
 
 PLAYING_FIELD_WIDTH = SCREEN_WIDTH - 300
 PLAYING_FIELD_HEIGHT = SCREEN_HEIGHT - 300
@@ -83,6 +83,8 @@ class GameView(arcade.View):
         self.background_sprite.center_x = 1920 / 2
         self.background_sprite.center_y = 1024 / 2
         self.background_list.append(self.background_sprite)
+        map_name = "map_files/dungeon.tmx"
+        self.tile_map = arcade.load_tilemap(map_name, scaling=1.0)
 
         self.player_sprite = None
         self.physics_engine = None
@@ -100,9 +102,6 @@ class GameView(arcade.View):
         self.player_list = arcade.SpriteList()
         self.wall_list = arcade.SpriteList()
 
-        map_name = "map_files/dungeon.tmx"
-        self.tile_map = arcade.load_tilemap(map_name, scaling=1.0)
-
         self.wall_list = self.tile_map.sprite_lists["walls"]
         self.collision_list = self.tile_map.sprite_lists["collision"]
         self.player_sprite = arcade.Sprite(
@@ -113,7 +112,9 @@ class GameView(arcade.View):
         self.player_sprite.center_y = CELL_SIZE * 2 + (CELL_SIZE / 2)
         self.player_list.append(self.player_sprite)
 
-        self.physics_engine = arcade.PhysicsEngineSimple(self.player_sprite, self.collision_list)
+        self.physics_engine = arcade.PhysicsEnginePlatformer(
+            self.player_sprite, gravity_constant=GRAVITY, walls=self.collision_list)
+        self.physics_engine.disable_multi_jump()
         self.background_color = arcade.color.BLUE_YONDER
 
     def on_draw(self):
@@ -131,9 +132,7 @@ class GameView(arcade.View):
             pause_view = PauseView(self)
             self.window.show_view(pause_view)
         elif key == arcade.key.UP:
-            self.player_sprite.change_y = PLAYER_MOVEMENT_SPEED
-        elif key == arcade.key.DOWN:
-            self.player_sprite.change_y = -PLAYER_MOVEMENT_SPEED
+            self.player_sprite.change_y = PLAYER_JUMP_SPEED
         elif key == arcade.key.LEFT:
             self.player_sprite.change_x = -PLAYER_MOVEMENT_SPEED
         elif key == arcade.key.RIGHT:
