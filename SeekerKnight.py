@@ -7,9 +7,9 @@ from arcade.gui import (
     UIBoxLayout,
     UILabel
 )
+
 SCREEN_WIDTH, SCREEN_HEIGHT = arcade.get_display_size()
 SPRITE_SCALING = 1.0
-
 
 VIEWPORT_MARGIN = 220
 
@@ -24,6 +24,9 @@ CELL_SIZE = 64
 TEX_RED_BUTTON_NORMAL = arcade.load_texture(":resources:gui_basic_assets/button/red_normal.png")
 TEX_RED_BUTTON_HOVER = arcade.load_texture(":resources:gui_basic_assets/button/red_hover.png")
 TEX_RED_BUTTON_PRESS = arcade.load_texture(":resources:gui_basic_assets/button/red_press.png")
+
+background_hall = arcade.Sprite("sprites/first_hall.png", scale=1)
+hall_map = "map_files/dungeon.tmx"
 
 
 class MenuView(arcade.View):
@@ -58,6 +61,7 @@ class MenuView(arcade.View):
                 texture_pressed=TEX_RED_BUTTON_PRESS,
             )
         )
+
         @button_exit.event("on_click")
         def on_click(event):
             self.window.close()
@@ -73,18 +77,26 @@ class MenuView(arcade.View):
         self.ui.draw()
 
 
+class Room:
+    def __init__(self, background, map_name):
+        self.wall_list = arcade.SpriteList()
+        self.background = background
+        self.map_name = map_name
+
+
+def setup_room_0():
+    room = Room(background_hall, hall_map)
+    return room
+
+
 class GameView(arcade.View):
     def __init__(self):
         super().__init__()
+        self.keys_picked = 0
+        self.current_room = 0
+        self.rooms = None
         self.player_list = None
         self.wall_list = None
-        self.background_list = arcade.SpriteList()
-        self.background_sprite = arcade.Sprite("sprites/first_hall.png", scale=1)
-        self.background_sprite.center_x = 1920 / 2
-        self.background_sprite.center_y = 1024 / 2
-        self.background_list.append(self.background_sprite)
-        map_name = "map_files/dungeon.tmx"
-        self.tile_map = arcade.load_tilemap(map_name, scaling=1.0)
 
         self.player_sprite = None
         self.physics_engine = None
@@ -99,18 +111,27 @@ class GameView(arcade.View):
         )
 
     def setup(self):
-        self.player_list = arcade.SpriteList()
-        self.wall_list = arcade.SpriteList()
-
-        self.wall_list = self.tile_map.sprite_lists["walls"]
-        self.collision_list = self.tile_map.sprite_lists["collision"]
-        self.player_sprite = arcade.Sprite(
-            "sprites/player_idle.PNG",
-            scale=1.0,
-        )
+        self.player_sprite = arcade.Sprite("sprites/player_idle.PNG", scale=1.0)
         self.player_sprite.center_x = CELL_SIZE * 1 + (CELL_SIZE / 2)
         self.player_sprite.center_y = CELL_SIZE * 2 + (CELL_SIZE / 2)
+        self.player_list = arcade.SpriteList()
         self.player_list.append(self.player_sprite)
+
+        self.rooms = []
+        room = setup_room_0()
+        self.rooms.append(room)
+        self.current_room = 0
+
+        self.current_map = self.rooms[self.current_room].map_name
+        self.tile_map = arcade.load_tilemap(self.current_map, scaling=1.0)
+        self.wall_list = self.tile_map.sprite_lists["walls"]
+        self.collision_list = self.tile_map.sprite_lists["collision"]
+
+        self.current_background_list = arcade.SpriteList()
+        self.current_background = self.rooms[self.current_room].background
+        self.current_background.center_x = self.tile_map.width * self.tile_map.tile_width / 2
+        self.current_background.center_y = self.tile_map.height * self.tile_map.tile_height / 2
+        self.current_background_list.append(self.current_background)
 
         self.physics_engine = arcade.PhysicsEnginePlatformer(
             self.player_sprite, gravity_constant=GRAVITY, walls=self.collision_list)
@@ -119,12 +140,13 @@ class GameView(arcade.View):
 
     def on_draw(self):
         self.clear()
-        self.background_list.draw()
-        self.camera_shake.update_camera()
         self.camera_sprites.use()
+
+        self.current_background_list.draw()
         self.wall_list.draw()
         self.player_list.draw()
 
+        self.camera_shake.update_camera()
         self.camera_shake.readjust_camera()
 
     def on_key_press(self, key, modifiers):
@@ -149,8 +171,6 @@ class GameView(arcade.View):
         self.camera_shake.update(delta_time)
         self.scroll_to_player()
 
-
-
     def scroll_to_player(self):
         position = (
             self.player_sprite.center_x,
@@ -174,10 +194,10 @@ class PauseView(arcade.View):
 
         self.game_view = game_view
         self.label = UILabel(text="Пауза",
-                        font_size=40,
-                        text_color=arcade.color.WHITE,
-                        width=200,
-                        align="center")
+                             font_size=40,
+                             text_color=arcade.color.WHITE,
+                             width=200,
+                             align="center")
         self.box_layout.add(self.label)
         button_back = self.box_layout.add(
             UITextureButton(
@@ -220,6 +240,7 @@ def main():
     window.show_view(MenuView())
     window.set_fullscreen(True)
     arcade.run()
+
 
 if __name__ == "__main__":
     main()
