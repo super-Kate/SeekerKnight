@@ -21,12 +21,16 @@ PLAYER_JUMP_SPEED = 15
 PLAYING_FIELD_WIDTH = SCREEN_WIDTH - 300
 PLAYING_FIELD_HEIGHT = SCREEN_HEIGHT - 300
 CELL_SIZE = 64
+
+door1_start, door1_end = 576, 768
+
 TEX_RED_BUTTON_NORMAL = arcade.load_texture(":resources:gui_basic_assets/button/red_normal.png")
 TEX_RED_BUTTON_HOVER = arcade.load_texture(":resources:gui_basic_assets/button/red_hover.png")
 TEX_RED_BUTTON_PRESS = arcade.load_texture(":resources:gui_basic_assets/button/red_press.png")
 
 background_hall = arcade.Sprite("sprites/first_hall.png", scale=1)
 hall_map = "map_files/dungeon.tmx"
+room_1 = arcade.Sprite("sprites/room_1.png", scale=1)
 
 
 class MenuView(arcade.View):
@@ -88,12 +92,16 @@ def setup_room_0():
     room = Room(background_hall, hall_map)
     return room
 
+def setup_room_1():
+    room = Room(room_1, hall_map)
+    return room
 
 class GameView(arcade.View):
     def __init__(self):
         super().__init__()
         self.keys_picked = 0
         self.current_room = 0
+        self.e_pressed = False
         self.rooms = None
         self.player_list = None
         self.wall_list = None
@@ -120,6 +128,9 @@ class GameView(arcade.View):
         self.rooms = []
         room = setup_room_0()
         self.rooms.append(room)
+
+        room = setup_room_1()
+        self.rooms.append(room)
         self.current_room = 0
 
         self.current_map = self.rooms[self.current_room].map_name
@@ -135,7 +146,6 @@ class GameView(arcade.View):
 
         self.physics_engine = arcade.PhysicsEnginePlatformer(
             self.player_sprite, gravity_constant=GRAVITY, walls=self.collision_list)
-        self.physics_engine.disable_multi_jump()
         self.background_color = arcade.color.BLUE_YONDER
 
     def on_draw(self):
@@ -159,17 +169,47 @@ class GameView(arcade.View):
             self.player_sprite.change_x = -PLAYER_MOVEMENT_SPEED
         elif key == arcade.key.RIGHT:
             self.player_sprite.change_x = PLAYER_MOVEMENT_SPEED
+        elif key == arcade.key.E:
+            self.e_pressed = True
 
     def on_key_release(self, key, modifiers):
         if key == arcade.key.UP or key == arcade.key.DOWN:
             self.player_sprite.change_y = 0
         elif key == arcade.key.LEFT or key == arcade.key.RIGHT:
             self.player_sprite.change_x = 0
+        elif key == arcade.key.E:
+            self.e_pressed = False
 
     def on_update(self, delta_time):
         self.physics_engine.update()
+        if self.e_pressed and self.current_room == 0 and (door1_start <= self.player_sprite.center_x <= door1_end):
+            self.load_room(1)
+        elif self.current_room == 1 and self.player_sprite.center_x < 89:
+            self.load_room(0)
+
         self.camera_shake.update(delta_time)
         self.scroll_to_player()
+
+    def load_room(self, room_index):
+        self.current_room = room_index
+
+        self.current_map = self.rooms[self.current_room].map_name
+        self.tile_map = arcade.load_tilemap(self.current_map, scaling=1.0)
+
+        self.wall_list = self.tile_map.sprite_lists["walls"]
+        self.collision_list = self.tile_map.sprite_lists["collision"]
+
+        self.current_background_list.clear()
+        self.current_background = self.rooms[self.current_room].background
+        self.current_background.center_x = self.tile_map.width * self.tile_map.tile_width / 2
+        self.current_background.center_y = self.tile_map.height * self.tile_map.tile_height / 2
+        self.current_background_list.append(self.current_background)
+
+        self.physics_engine = arcade.PhysicsEnginePlatformer(
+            self.player_sprite, gravity_constant=GRAVITY, walls=self.collision_list)
+
+        self.player_sprite.center_x = CELL_SIZE * 2 + (CELL_SIZE / 2)
+        self.player_sprite.center_y = CELL_SIZE * 2 + (CELL_SIZE / 2)
 
     def scroll_to_player(self):
         position = (
