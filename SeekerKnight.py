@@ -23,19 +23,30 @@ PLAYING_FIELD_HEIGHT = SCREEN_HEIGHT - 300
 CELL_SIZE = 64
 
 door1_start, door1_end = 576, 768
+door2_start, door2_end = 1088, 1280
+door3_start, door3_end = 1536, 1728
 
 TEX_RED_BUTTON_NORMAL = arcade.load_texture(":resources:gui_basic_assets/button/red_normal.png")
 TEX_RED_BUTTON_HOVER = arcade.load_texture(":resources:gui_basic_assets/button/red_hover.png")
 TEX_RED_BUTTON_PRESS = arcade.load_texture(":resources:gui_basic_assets/button/red_press.png")
 
 background_hall = arcade.Sprite("sprites/first_hall.png", scale=1)
+second_hall = arcade.Sprite("sprites/second_hall.png", scale=1)
 hall_map = "map_files/dungeon.tmx"
 room_1 = arcade.Sprite("sprites/room_1.png", scale=1)
+room_2_map = "map_files/room_2.tmx"
+room_3 = arcade.Sprite("sprites/room_3.png", scale=1)
 
 
 class MenuView(arcade.View):
     def __init__(self):
         super().__init__()
+        bg_scale = 1.2
+        self.bg_sprite = arcade.Sprite("sprites/mainmenu_bg.png", scale=bg_scale)
+        self.bg_sprite.center_x = 1000
+        self.bg_sprite.center_y = 600
+        self.sprite_list = arcade.SpriteList()
+        self.sprite_list.append(self.bg_sprite)
         self.ui = UIManager()
         self.anchor_layout = UIAnchorLayout()
         self.box_layout = UIBoxLayout(vertical=True, space_between=10)
@@ -78,6 +89,7 @@ class MenuView(arcade.View):
 
     def on_draw(self):
         self.clear(color=arcade.uicolor.BLACK)
+        self.sprite_list.draw()
         self.ui.draw()
 
 
@@ -96,6 +108,18 @@ def setup_room_1():
     room = Room(room_1, hall_map)
     return room
 
+def setup_room_2():
+    room = Room(room_3, room_2_map)
+    return room
+
+def setup_room_3():
+    room = Room(room_3, hall_map)
+    return room
+
+def setup_room_4():
+    room = Room(second_hall, hall_map)
+    return room
+
 class GameView(arcade.View):
     def __init__(self):
         super().__init__()
@@ -105,10 +129,21 @@ class GameView(arcade.View):
         self.rooms = None
         self.player_list = None
         self.wall_list = None
+        self.room2_key_picked = False
+        self.key_list = arcade.SpriteList()
+        h = SCREEN_HEIGHT - 200
 
         self.player_sprite = None
         self.physics_engine = None
+        self.keys_display = arcade.Text(
+            f"keys: {self.keys_picked}",
+            x=10,
+            y=1200,
+            color=arcade.csscolor.WHITE,
+            font_size=20,
+        )
         self.camera_sprites = arcade.Camera2D()
+        self.camera_gui = arcade.Camera2D()
 
         self.camera_shake = arcade.camera.grips.ScreenShake2D(
             self.camera_sprites.view_data,
@@ -124,12 +159,19 @@ class GameView(arcade.View):
         self.player_sprite.center_y = CELL_SIZE * 2 + (CELL_SIZE / 2)
         self.player_list = arcade.SpriteList()
         self.player_list.append(self.player_sprite)
+        self.key = arcade.Sprite("sprites/key.png", scale=1)
 
         self.rooms = []
         room = setup_room_0()
         self.rooms.append(room)
 
         room = setup_room_1()
+        self.rooms.append(room)
+        room = setup_room_2()
+        self.rooms.append(room)
+        room = setup_room_3()
+        self.rooms.append(room)
+        room = setup_room_4()
         self.rooms.append(room)
         self.current_room = 0
 
@@ -154,7 +196,12 @@ class GameView(arcade.View):
 
         self.current_background_list.draw()
         self.wall_list.draw()
+        self.key_list.draw()
         self.player_list.draw()
+        self.key_list.draw()
+        with self.camera_gui.activate():
+            self.keys_display.text = f"Keys: {self.keys_picked}"
+            self.keys_display.draw()
 
         self.camera_shake.update_camera()
         self.camera_shake.readjust_camera()
@@ -171,6 +218,8 @@ class GameView(arcade.View):
             self.player_sprite.change_x = PLAYER_MOVEMENT_SPEED
         elif key == arcade.key.E:
             self.e_pressed = True
+        elif key == arcade.key.R:
+            self.move_back()
 
     def on_key_release(self, key, modifiers):
         if key == arcade.key.UP or key == arcade.key.DOWN:
@@ -182,13 +231,50 @@ class GameView(arcade.View):
 
     def on_update(self, delta_time):
         self.physics_engine.update()
-        if self.e_pressed and self.current_room == 0 and (door1_start <= self.player_sprite.center_x <= door1_end):
-            self.load_room(1)
-        elif self.current_room == 1 and self.player_sprite.center_x < 89:
-            self.load_room(0)
+        if self.current_room == 0:
+            if self.e_pressed:
+                if door1_start <= self.player_sprite.center_x <= door1_end:
+                    self.load_room(1)
+                elif door2_start <= self.player_sprite.center_x <= door2_end:
+                    self.load_room(2)
+                    self.place_key(2)
+                elif door3_start <= self.player_sprite.center_x <= door3_end:
+                    self.load_room(3)
+            elif self.player_sprite.center_x > 1831:
+                self.load_room(4)
+        elif self.current_room == 1:
+            if self.player_sprite.center_x < 89:
+                self.load_room(0)
+        elif self.current_room == 2:
+            if self.player_sprite.center_x < 89:
+                self.load_room(0)
+            keys_hit_list = arcade.check_for_collision_with_list(self.player_sprite, self.key_list)
+            for key in keys_hit_list:
+                key.remove_from_sprite_lists()
+                self.keys_picked += 1
+                self.room2_key_picked = True
+        elif self.current_room == 3:
+            if self.player_sprite.center_x < 89:
+                self.load_room(0)
+        elif self.current_room == 4:
+            if self.e_pressed:
+                pass
+            elif self.player_sprite.center_x < 89:
+                self.load_room(0)
 
         self.camera_shake.update(delta_time)
         self.scroll_to_player()
+
+    def place_key(self, level):
+        if level == 2 and self.room2_key_picked == False:
+            self.key.center_x = 1760
+            self.key.center_y = 480
+            self.key_list.append(self.key)
+
+
+    def move_back(self):
+        self.player_sprite.center_x = CELL_SIZE * 1 + (CELL_SIZE / 2)
+        self.player_sprite.center_y = CELL_SIZE * 2 + (CELL_SIZE / 2)
 
     def load_room(self, room_index):
         self.current_room = room_index
