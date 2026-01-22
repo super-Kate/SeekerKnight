@@ -356,7 +356,126 @@ class GameView(arcade.View):
             CAMERA_SPEED,
         )
 
+SCREEN_WIDTH1 = 600
+SCREEN_HEIGHT1 = 600
+GRID_SIZE = 3
+TILE_SIZE = SCREEN_WIDTH1 // GRID_SIZE
 
+
+class SlidePuzzle(arcade.Window):
+    def __init__(self):
+        super().__init__(SCREEN_WIDTH1, SCREEN_HEIGHT1, "Puzzle")
+        
+        self.board = []
+        self.tiles = []
+        self.selected_tile = None
+        
+        self.setup()
+
+    def setup(self):
+       numbers = list(range(1, GRID_SIZE * GRID_SIZE + 1))
+       random.shuffle(numbers)
+       self.board = []
+       index = 0
+       for i in range(GRID_SIZE):
+        row = []
+        for j in range(GRID_SIZE):
+            row.append(numbers[index])
+            index += 1
+            self.board.append(row)
+
+        self.tiles = arcade.SpriteList()
+        self.create_tiles()
+    
+    def create_tiles(self):
+        images = ["01.jpg", '02.jpg', '03.jpg', '04.jpg', '05.jpg', '06.jpg', '07.jpg', '08.jpg', '09.jpg']
+        for row in range(GRID_SIZE):
+            for col in range(GRID_SIZE):
+                tile_value = self.board[row][col]
+                ch = random.choice(images)
+                tile = arcade.Sprite(ch, scale=0.8)
+                images.remove(ch)
+
+                tile.center_x = col * TILE_SIZE + TILE_SIZE // 2
+                tile.center_y = SCREEN_HEIGHT1 - (row * TILE_SIZE + TILE_SIZE // 2)
+
+                tile.properties = {
+                    'value': tile_value,
+                    'grid_pos': (row, col),
+                    'selected': False
+                }
+                
+                self.tiles.append(tile)
+
+    def on_draw(self):
+        for i in range(GRID_SIZE + 1):
+            arcade.draw_line(
+                i * TILE_SIZE, 0,
+                i * TILE_SIZE, SCREEN_HEIGHT1,
+                arcade.color.BLACK, 2
+            )
+            arcade.draw_line(
+                0, i * TILE_SIZE,
+                SCREEN_WIDTH1, i * TILE_SIZE,
+                arcade.color.BLACK, 2
+            )
+        
+        self.tiles.draw()
+            
+
+    def on_mouse_press(self, x, y, button):
+        if button != arcade.MOUSE_BUTTON_LEFT:
+            return
+        
+        col = x // TILE_SIZE
+        row = (SCREEN_HEIGHT1 - y) // TILE_SIZE
+        
+        clicked_tile = None
+        for tile in self.tiles:
+            if tile.properties['grid_pos'] == (row, col):
+                clicked_tile = tile
+                break
+        
+        if not clicked_tile:
+            return
+        
+        if self.selected_tile is None:
+            self.selected_tile = clicked_tile
+            clicked_tile.properties['selected'] = True
+        else:
+            if self.can_swap(self.selected_tile, clicked_tile):
+                self.swap_tiles(self.selected_tile, clicked_tile)
+                if self.check_win():
+                    print("Поздравляем! Вы собрали пазл!")
+
+            self.selected_tile.properties['selected'] = False
+            clicked_tile.properties['selected'] = False
+            self.selected_tile = None
+    
+    def can_swap(self, tile1, tile2):
+        row1, col1 = tile1.properties['grid_pos']
+        row2, col2 = tile2.properties['grid_pos']
+        
+        return (abs(row1 - row2) == 1 and col1 == col2) or \
+               (abs(col1 - col2) == 1 and row1 == row2)
+    
+    def swap_tiles(self, tile1, tile2):
+        row1, col1 = tile1.properties['grid_pos']
+        row2, col2 = tile2.properties['grid_pos']
+        
+        self.board[row1][col1], self.board[row2][col2] = \
+            self.board[row2][col2], self.board[row1][col1]
+        
+        tile1.center_x, tile2.center_x = tile2.center_x, tile1.center_x
+        tile1.center_y, tile2.center_y = tile2.center_y, tile1.center_y
+        
+        tile1.properties['grid_pos'], tile2.properties['grid_pos'] = \
+            tile2.properties['grid_pos'], tile1.properties['grid_pos']
+    
+    def check_win(self):
+        pass
+
+    
 class PauseView(arcade.View):
     def __init__(self, game_view):
         super().__init__()
