@@ -64,9 +64,9 @@ class MenuView(arcade.View):
 
         @button_play.event("on_click")
         def on_click(event):
-            game_view = GameView()
-            game_view.setup()
-            self.window.show_view(game_view)
+            prologue_view = PrologueView()
+            prologue_view.setup()
+            self.window.show_view(prologue_view)
 
         button_exit = self.box_layout.add(
             UITextureButton(
@@ -82,6 +82,7 @@ class MenuView(arcade.View):
             self.window.close()
 
     def on_show_view(self) -> None:
+        self.window.default_camera.use()
         self.ui.enable()
 
     def on_hide_view(self) -> None:
@@ -120,6 +121,54 @@ def setup_room_4():
     room = Room(second_hall, hall_map)
     return room
 
+
+class PrologueView(arcade.View):
+    def __init__(self):
+        super().__init__()
+        self.camera_text = arcade.Camera2D()
+        self.bg_sprite = arcade.Sprite("sprites/prologue_bg.jpg", scale=1.2)
+        self.bg_sprite.center_x = 1100
+        self.bg_sprite.center_y = 650
+        self.sprite_list = arcade.SpriteList()
+        self.sprite_list.append(self.bg_sprite)
+
+    def setup(self):
+        self.lines = []
+        self.current_line = 0
+        width = SCREEN_WIDTH / 2
+        with open('txt/prologue.txt', 'r', encoding='utf-8') as prologue:
+            for line in prologue:
+                text = arcade.Text(line, x=1100, y=100,
+                                   color=arcade.color.WHITE,
+                                   font_size=30, anchor_x='center')
+                self.lines.append(text)
+
+    def on_draw(self):
+        self.clear()
+        self.sprite_list.draw()
+        with self.camera_text.activate():
+            self.lines[self.current_line].draw()
+
+    def on_key_press(self, key, modifiers):
+        if key == arcade.key.ENTER and self.current_line != 3:
+            self.current_line += 1
+        elif key == arcade.key.ENTER:
+            game_view = GameView()
+            game_view.setup()
+            self.window.show_view(game_view)
+        elif key == arcade.key.ESCAPE:
+            pause_view = PauseView(self)
+            self.window.show_view(pause_view)
+
+    def on_mouse_press(self, x, y, button, modifiers):
+        if button == arcade.MOUSE_BUTTON_LEFT and self.current_line != 3:
+            self.current_line += 1
+        elif button == arcade.MOUSE_BUTTON_LEFT:
+            game_view = GameView()
+            game_view.setup()
+            self.window.show_view(game_view)
+
+
 class GameView(arcade.View):
     def __init__(self):
         super().__init__()
@@ -131,7 +180,6 @@ class GameView(arcade.View):
         self.wall_list = None
         self.room2_key_picked = False
         self.key_list = arcade.SpriteList()
-        h = SCREEN_HEIGHT - 200
 
         self.player_sprite = None
         self.physics_engine = None
