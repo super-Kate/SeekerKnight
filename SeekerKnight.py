@@ -1,4 +1,5 @@
 import arcade
+import random
 
 from arcade.gui import (
     UIManager,
