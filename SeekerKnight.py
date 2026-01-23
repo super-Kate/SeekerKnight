@@ -170,6 +170,57 @@ class PrologueView(arcade.View):
             self.window.show_view(game_view)
 
 
+class Player(arcade.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.scale = 1.0
+        self.facing_right = True
+
+        self.idle_texture = arcade.load_texture("sprites/player_idle.PNG")
+        self.texture = self.idle_texture
+
+        self.walk_textures_right = []
+        self.walk_textures_left = []
+        for i in range(0, 7):
+            tex_right = arcade.load_texture(f"sprites/player_{i}.png")
+            tex_left = tex_right.flip_horizontally()
+            self.walk_textures_right.append(tex_right)
+            self.walk_textures_left.append(tex_left)
+
+        self.current_texture = 0
+        self.texture_change_time = 0
+        self.texture_change_delay = 0.1
+        self.is_walking = False
+
+
+    def update_animation(self, delta_time, is_walking):
+        if is_walking:
+            self.texture_change_time += delta_time
+            if self.texture_change_time >= self.texture_change_delay:
+                self.texture_change_time = 0
+                self.current_texture += 1
+                if self.current_texture >= len(self.walk_textures_right):
+                    self.current_texture = 0
+
+            if self.facing_right:
+                self.texture = self.walk_textures_right[self.current_texture]
+            else:
+                self.texture = self.walk_textures_left[self.current_texture]
+        else:
+            self.texture = self.idle_texture
+
+    def update(self, button):
+        old_x = self.center_x
+        old_y = self.center_y
+
+        if button == 'right':
+            self.change_x = PLAYER_MOVEMENT_SPEED
+        elif button == 'left':
+            self.change_x = -PLAYER_MOVEMENT_SPEED
+        elif button == 'up':
+            self.change_y = PLAYER_JUMP_SPEED
+
+
 class GameView(arcade.View):
     def __init__(self):
         super().__init__()
@@ -203,7 +254,8 @@ class GameView(arcade.View):
         )
 
     def setup(self):
-        self.player_sprite = arcade.Sprite("sprites/player_idle.PNG", scale=1.0)
+        self.player_sprite = Player()
+        self.is_walking = self.player_sprite.is_walking
         self.player_sprite.center_x = CELL_SIZE * 1 + (CELL_SIZE / 2)
         self.player_sprite.center_y = CELL_SIZE * 2 + (CELL_SIZE / 2)
         self.player_list = arcade.SpriteList()
@@ -260,11 +312,16 @@ class GameView(arcade.View):
             pause_view = PauseView(self)
             self.window.show_view(pause_view)
         elif key == arcade.key.UP:
-            self.player_sprite.change_y = PLAYER_JUMP_SPEED
+            self.player_sprite.update(button='up')
+            self.is_walking = True
         elif key == arcade.key.LEFT:
-            self.player_sprite.change_x = -PLAYER_MOVEMENT_SPEED
+            self.player_sprite.facing_right = False
+            self.player_sprite.update(button='left')
+            self.is_walking = True
         elif key == arcade.key.RIGHT:
-            self.player_sprite.change_x = PLAYER_MOVEMENT_SPEED
+            self.player_sprite.facing_right = True
+            self.player_sprite.update(button='right')
+            self.is_walking = True
         elif key == arcade.key.E:
             self.e_pressed = True
         elif key == arcade.key.R:
@@ -275,6 +332,7 @@ class GameView(arcade.View):
             self.player_sprite.change_y = 0
         elif key == arcade.key.LEFT or key == arcade.key.RIGHT:
             self.player_sprite.change_x = 0
+            self.is_walking = False
         elif key == arcade.key.E:
             self.e_pressed = False
 
@@ -310,7 +368,7 @@ class GameView(arcade.View):
                 pass
             elif self.player_sprite.center_x < 89:
                 self.load_room(0)
-
+        self.player_sprite.update_animation(delta_time=delta_time, is_walking=self.is_walking)
         self.camera_shake.update(delta_time)
         self.scroll_to_player()
 
