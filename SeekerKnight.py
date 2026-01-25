@@ -10,6 +10,13 @@ from arcade.gui import (
 )
 
 SCREEN_WIDTH, SCREEN_HEIGHT = arcade.get_display_size()
+if SCREEN_WIDTH == 3840 and SCREEN_HEIGHT == 2160:
+    SCREEN_WIDTH = 1100
+    SCREEN_HEIGHT = 650
+elif SCREEN_WIDTH == 1920 and SCREEN_HEIGHT == 1080:
+    SCREEN_WIDTH = 400
+    SCREEN_HEIGHT = 150
+
 SPRITE_SCALING = 1.0
 
 VIEWPORT_MARGIN = 220
@@ -26,6 +33,10 @@ CELL_SIZE = 64
 door1_start, door1_end = 576, 768
 door2_start, door2_end = 1088, 1280
 door3_start, door3_end = 1536, 1728
+door4_start, door4_end = 462, 652
+door5_start, door5_end = 674, 864
+door6_start, door6_end = 953, 1143
+door7_start, door7_end = 1192, 1382
 
 TEX_RED_BUTTON_NORMAL = arcade.load_texture(":resources:gui_basic_assets/button/red_normal.png")
 TEX_RED_BUTTON_HOVER = arcade.load_texture(":resources:gui_basic_assets/button/red_hover.png")
@@ -37,6 +48,10 @@ hall_map = "map_files/dungeon.tmx"
 room_1 = arcade.Sprite("sprites/room_1.png", scale=1)
 room_2_map = "map_files/room_2.tmx"
 room_3 = arcade.Sprite("sprites/room_3.png", scale=1)
+room_5_map = "map_files/room_5.tmx"
+room_5 = arcade.Sprite("sprites/room_5.png", scale=1)
+room_2 = arcade.Sprite("sprites/room_2.png", scale=1)
+room_6 = arcade.Sprite("sprites/room_6.png", scale=1)
 
 
 class MenuView(arcade.View):
@@ -44,8 +59,8 @@ class MenuView(arcade.View):
         super().__init__()
         bg_scale = 1.2
         self.bg_sprite = arcade.Sprite("sprites/mainmenu_bg.png", scale=bg_scale)
-        self.bg_sprite.center_x = 1000
-        self.bg_sprite.center_y = 600
+        self.bg_sprite.center_x = SCREEN_WIDTH
+        self.bg_sprite.center_y = SCREEN_HEIGHT
         self.sprite_list = arcade.SpriteList()
         self.sprite_list.append(self.bg_sprite)
         self.ui = UIManager()
@@ -115,11 +130,27 @@ def setup_room_2():
     return room
 
 def setup_room_3():
-    room = Room(room_3, hall_map)
+    room = Room(room_2, hall_map)
+    return room
+
+def setup_room_hall2():
+    room = Room(second_hall, hall_map)
     return room
 
 def setup_room_4():
-    room = Room(second_hall, hall_map)
+    room = Room(room_3, hall_map)
+    return room
+
+def setup_room_5():
+    room = Room(room_3, hall_map)
+    return room
+
+def setup_room_6():
+    room = Room(room_5, room_5_map)
+    return room
+
+def setup_room_7():
+    room = Room(room_6, hall_map)
     return room
 
 
@@ -226,12 +257,16 @@ class GameView(arcade.View):
         super().__init__()
         self.keys_picked = 0
         self.current_room = 0
+        self.current_line = 0
         self.e_pressed = False
         self.rooms = None
         self.player_list = None
         self.wall_list = None
         self.room2_key_picked = False
+        self.room6_key_picked = False
+        self.text_camera = arcade.Camera2D()
         self.key_list = arcade.SpriteList()
+        self.been_to = []
 
         self.player_sprite = None
         self.physics_engine = None
@@ -272,7 +307,15 @@ class GameView(arcade.View):
         self.rooms.append(room)
         room = setup_room_3()
         self.rooms.append(room)
+        room = setup_room_hall2()
+        self.rooms.append(room)
         room = setup_room_4()
+        self.rooms.append(room)
+        room = setup_room_5()
+        self.rooms.append(room)
+        room = setup_room_6()
+        self.rooms.append(room)
+        room = setup_room_7()
         self.rooms.append(room)
         self.current_room = 0
 
@@ -299,10 +342,19 @@ class GameView(arcade.View):
         self.wall_list.draw()
         self.key_list.draw()
         self.player_list.draw()
-        self.key_list.draw()
         with self.camera_gui.activate():
             self.keys_display.text = f"Keys: {self.keys_picked}"
             self.keys_display.draw()
+        if self.current_room == 3 or self.current_room == 6 or self.current_room == 8:
+            if self.current_room == 3:
+                self.text = self.get_text('room_3')
+            elif self.current_room == 6:
+                self.text = self.get_text('room_5')
+            elif self.current_room == 8:
+                self.text = self.get_text('room_7')
+            with self.text_camera.activate():
+                if self.current_line != len(self.text):
+                    self.text[self.current_line].draw()
 
         self.camera_shake.update_camera()
         self.camera_shake.readjust_camera()
@@ -326,6 +378,14 @@ class GameView(arcade.View):
             self.e_pressed = True
         elif key == arcade.key.R:
             self.move_back()
+        if self.current_room == 3 or self.current_room == 6 or self.current_room == 8:
+            if key == arcade.key.ENTER and self.current_line != len(self.text):
+                self.current_line += 1
+
+    def on_mouse_press(self, x, y, button, modifiers):
+        if self.current_room == 3 or self.current_room == 6 or self.current_room == 8:
+            if button == arcade.MOUSE_BUTTON_LEFT and self.current_line != len(self.text):
+                self.current_line += 1
 
     def on_key_release(self, key, modifiers):
         if key == arcade.key.UP or key == arcade.key.DOWN:
@@ -353,29 +413,75 @@ class GameView(arcade.View):
             if self.player_sprite.center_x < 89:
                 self.load_room(0)
         elif self.current_room == 2:
-            if self.player_sprite.center_x < 89:
-                self.load_room(0)
             keys_hit_list = arcade.check_for_collision_with_list(self.player_sprite, self.key_list)
             for key in keys_hit_list:
                 key.remove_from_sprite_lists()
                 self.keys_picked += 1
-                self.room2_key_picked = True
+                self.room6_key_picked = True
+            if self.player_sprite.center_x < 89:
+                self.key_list.clear()
+                self.load_room(0)
         elif self.current_room == 3:
             if self.player_sprite.center_x < 89:
                 self.load_room(0)
         elif self.current_room == 4:
             if self.e_pressed:
+                if door4_start <= self.player_sprite.center_x <= door4_end:
+                    self.load_room(5)
+                elif door5_start <= self.player_sprite.center_x <= door5_end:
+                    self.load_room(6)
+                elif door6_start <= self.player_sprite.center_x <= door6_end:
+                    self.load_room(7)
+                    self.place_key(6)
+                elif door7_start <= self.player_sprite.center_x <= door7_end:
+                    self.load_room(8)
+            elif self.player_sprite.center_x > 1831:
                 pass
             elif self.player_sprite.center_x < 89:
                 self.load_room(0)
+        elif self.current_room == 5:
+            if self.player_sprite.center_x < 89:
+                self.load_room(4)
+        elif self.current_room == 6:
+            if self.player_sprite.center_x < 89:
+                self.load_room(4)
+        elif self.current_room == 7:
+            keys_hit_list = arcade.check_for_collision_with_list(self.player_sprite, self.key_list)
+            for key in keys_hit_list:
+                key.remove_from_sprite_lists()
+                self.keys_picked += 1
+                self.room6_key_picked = True
+            if self.player_sprite.center_x < 89:
+                self.key_list.clear()
+                self.load_room(4)
+        elif self.current_room == 8:
+            if self.player_sprite.center_x < 89:
+                self.load_room(4)
+
         self.player_sprite.update_animation(delta_time=delta_time, is_walking=self.is_walking)
         self.camera_shake.update(delta_time)
         self.scroll_to_player()
+
+    def get_text(self, file_name):
+        self.lines = []
+        width = SCREEN_WIDTH / 2
+        name = f'txt/{file_name}.txt'
+        with open(name, 'r', encoding='utf-8') as text_file:
+            for line in text_file:
+                text = arcade.Text(line, x=SCREEN_WIDTH, y=100,
+                                   color=arcade.color.WHITE,
+                                   font_size=30, anchor_x='center')
+                self.lines.append(text)
+        return self.lines
 
     def place_key(self, level):
         if level == 2 and self.room2_key_picked == False:
             self.key.center_x = 1760
             self.key.center_y = 480
+            self.key_list.append(self.key)
+        elif level == 6 and self.room6_key_picked == False:
+            self.key.center_x = 288
+            self.key.center_y = 160
             self.key_list.append(self.key)
 
 
@@ -385,6 +491,7 @@ class GameView(arcade.View):
 
     def load_room(self, room_index):
         self.current_room = room_index
+        self.current_line = 0
 
         self.current_map = self.rooms[self.current_room].map_name
         self.tile_map = arcade.load_tilemap(self.current_map, scaling=1.0)
@@ -588,7 +695,11 @@ class PauseView(arcade.View):
 
 
 def main():
-    window = arcade.Window(SCREEN_WIDTH, SCREEN_HEIGHT, title="SeekerKnight")
+    global SCREEN_WIDTH, SCREEN_HEIGHT
+    if SCREEN_WIDTH == 1100 and SCREEN_HEIGHT == 650:
+        window = arcade.Window(3840, 2160, title="SeekerKnight")
+    elif SCREEN_WIDTH == 400 and SCREEN_HEIGHT == 150:
+        window = arcade.Window(1920, 1080, title="SeekerKnight")
     window.show_view(MenuView())
     window.set_fullscreen(True)
     arcade.run()
