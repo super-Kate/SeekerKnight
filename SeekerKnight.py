@@ -412,6 +412,7 @@ class GameView(arcade.View):
         elif self.current_room == 1:
             if self.player_sprite.center_x < 89:
                 self.load_room(0)
+                self.keys_picked += 1
         elif self.current_room == 2:
             keys_hit_list = arcade.check_for_collision_with_list(self.player_sprite, self.key_list)
             for key in keys_hit_list:
@@ -424,6 +425,7 @@ class GameView(arcade.View):
         elif self.current_room == 3:
             if self.player_sprite.center_x < 89:
                 self.load_room(0)
+                self.keys_picked += 1
         elif self.current_room == 4:
             if self.e_pressed:
                 if door4_start <= self.player_sprite.center_x <= door4_end:
@@ -442,9 +444,11 @@ class GameView(arcade.View):
         elif self.current_room == 5:
             if self.player_sprite.center_x < 89:
                 self.load_room(4)
+                self.keys_picked += 1
         elif self.current_room == 6:
             if self.player_sprite.center_x < 89:
                 self.load_room(4)
+                self.keys_picked += 1
         elif self.current_room == 7:
             keys_hit_list = arcade.check_for_collision_with_list(self.player_sprite, self.key_list)
             for key in keys_hit_list:
@@ -457,6 +461,7 @@ class GameView(arcade.View):
         elif self.current_room == 8:
             if self.player_sprite.center_x < 89:
                 self.load_room(4)
+                self.keys_picked += 1
 
         self.player_sprite.update_animation(delta_time=delta_time, is_walking=self.is_walking)
         self.camera_shake.update(delta_time)
